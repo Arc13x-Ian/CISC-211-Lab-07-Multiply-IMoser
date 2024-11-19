@@ -14,7 +14,7 @@
 .type nameStr,%gnu_unique_object
     
 /*** STUDENTS: Change the next line to your name!  **/
-nameStr: .asciz "Inigo Montoya"  
+nameStr: .asciz "Ian Moser"  
 
 .align   /* realign so that next mem allocations are on word boundaries */
  
@@ -89,6 +89,169 @@ asmMult:
     
     /*** STUDENTS: Place your code BELOW this line!!! **************/
     
+    MOV r2, 0
+    LDR r3, =a_Multiplicand
+    LDR r4, =b_Multiplier
+    STR r2, [r3]
+    STR r2, [r4]
+    /*setting multiplicand and multiplier to 0, giving them dedicated spaces
+     in r3/r4. All the other variables I'm just gonna cycle through r5 one at
+     a time*/
+    
+    LDR r5, =rng_Error
+    STR r2, [r5]
+    LDR r5, =a_Sign
+    STR r2, [r5]    
+    LDR r5, =b_Sign
+    STR r2, [r5]    
+    LDR r5, =prod_Is_Neg
+    STR r2, [r5]    
+    LDR r5, =a_Abs
+    STR r2, [r5]
+    LDR r5, =b_Abs
+    STR r2, [r5]
+    LDR r5, =init_Product
+    STR r2, [r5]
+    LDR r5, =final_Product
+    STR r2, [r5]
+    /*all variables zeroed out using that one register.*/
+    
+    STR r0, [r3]
+    STR r1, [r4]
+    /*setting the multiplicand and the multiplier. I probably could have done
+     that earlier but I wanted to make everything a fresh zero, and then
+     start the actual multiplying process here.*/
+    
+    LDR r10, =32767
+    LDR r11, =0xFFFF8000
+    /*setting the bounds for range checking*/
+    
+    CMP r0, r10
+    BGT errorTime
+    CMP r0,r11
+    BLT errorTime
+    
+    CMP r1, r10
+    BGT errorTime
+    CMP r1,r11
+    BLT errorTime
+    /*checking the multiplicand and multiplier to see if they're too big.*/
+    
+    LDR r5, =a_Sign
+    LDR r6, =b_Sign
+    MOV r7, 0
+    MOV r8, 1
+    /*setting up for sign checking- remember that r0 = a and r1 = b*/
+    
+    CMP r0, 0
+    STRGE r7, [r5]
+    STRLT r8, [r5]
+    
+    CMP r1, 0
+    STRGE r7, [r6]
+    STRLT r8, [r6]
+    /*compares A and B to zero, assigning a 0 to the sign if the compare is pos
+     and a 1 to the sign if the compare is negative.*/
+    
+    LDR r7, [r5]
+    LDR r8, [r6]
+    LDR r9, =prod_Is_Neg
+    /*sets 7 and 8 to the sign bits so I can compare them to figure out if it's
+     a negative product*/
+    
+    CMP r7, r8
+    MOVEQ r7, 0
+    MOVNE r7, 1
+    /*sets r7 to match a negative product or a positive product based on signs
+    but before we set it we need to check for zeroes*/
+    CMP r0, 0
+    MOVEQ r7, 0
+    CMP r1, 0
+    MOVEQ r7, 0
+    /*if either A or B is zero, the product is positive, so r7 must be 0*/
+    
+    STR r7, [r9]
+    /*finally, set if it's negative*/
+    
+    LDR r5, =a_Abs
+    LDR r6, =b_Abs
+    MOV r7, 0
+    /*prep for absolute storing*/
+    
+    CMP r0, 0
+    MOVGE r8, r0
+    STRGE r0, [r5]
+    NEGLT r8, r0
+    STRLT r8, [r5]
+    /*if r0 is 0 or more, store it into a_Abs. If not, put its negative into r9
+     and store that instead.*/
+    
+    CMP r1, 0
+    MOVGE r9, r1
+    STRGE r1, [r6]
+    NEGLT r9, r1
+    STRLT r9, [r6]
+    /*do the same thing for r1. Additionally, the absolute A and B are now r8
+    and r9, respectively.*/
+    
+    CMP r8, 0
+    BEQ zeroProduct
+    CMP r9, 0
+    BEQ zeroProduct
+    /*i think it'll be easier to do the finalization step for a product of zero
+     as it's own thing later*/
+    
+multiply:
+    /*don't forger: mutliplicand is in r8, multiplier is in r9- we'll leave
+    the product in r12*/
+    
+    CMP r9, 0
+    BEQ finalizeProduct
+    TST r8, 1
+    ADDEQ r12, r8, r9
+    LSL r8, r8, 1
+    LSR r9, r9, 1
+    b multiply
+    
+finalizeProduct:
+    /*only r12 needs to be preserved for finalization*/
+    LDR r4, =init_Product
+    LDR r5, =final_Product
+    LDR r6, =prod_Is_Neg
+    LDR r7, [r6]
+    /*set up for filling the product!*/
+    
+    STR r12, [r4]
+    
+    TST r7, 1
+    NEGEQ r12, r12
+    /*if prod_is_Neg is 1,we 2's complement the product, and then we set it to
+     final_product whether its been flipped or not*/
+    STR r12, [r5] 
+    MOV r0, r12
+    
+    b done
+    
+zeroProduct:
+    
+    LDR r4, =init_Product
+    LDR r5, =final_Product
+    
+    MOV r0, 0
+    
+    STR r0, [r4]
+    STR r0, [r5]
+    /*Quick and dirty, make initial and final products equal to r0, which is 0*/
+    
+    b done
+    
+errorTime:
+    
+    LDR r5, =rng_Error
+    MOV r2, 1
+    STR r2, [r5]
+    MOV r0, 0
+    b done
     
     /*** STUDENTS: Place your code ABOVE this line!!! **************/
 
